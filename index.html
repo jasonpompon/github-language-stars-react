@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Popular Repos</title>
+  <script crossorigin src="https://unpkg.com/react@16/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
+  <script src='https://unpkg.com/babel-standalone@6/babel.min.js'></script>
+</head>
+<body>
+    <style>
+        .lang-row {
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.35s ease;
+        }
+
+        .lang-row:hover {
+            color: darkgray;
+        }
+    </style>
+  <div id='app'></div>
+  <script>
+    window.API = {
+      fetchPopularRepos(language) {
+        // "language" can be "javascript", "ruby", "python", or "all"
+        const encodedURI = encodeURI(`https://api.github.com/search/repositories?q=stars:>1+language:${language}&sort=stars&order=desc&type=Repositories`)
+        return fetch(encodedURI)
+          .then((data) => data.json())
+          .then((repos) => repos.items)
+          .catch((error) => {
+            console.warn(error)
+            return null
+          });
+      }
+    }
+  </script>
+
+  <script type='text/babel'>
+    class Loading extends React.Component {
+        constructor(props) {
+            super(props);
+            this.state = {
+            text: 'Loading'
+            };
+        }
+
+        componentDidMount() {
+            const stopper = this.state.text + '...';
+            this.interval = window.setInterval(() => {
+            this.state.text === stopper
+                ? this.setState(() => ({ text: 'Loading' }))
+                : this.setState((prevState) => ({ text: prevState.text + '.' }))
+            }, 300)
+        }
+
+        componentWillUnmount() {
+            window.clearInterval(this.interval);
+        }
+        render() {
+            return (
+            <p>
+                {this.state.text}
+            </p>
+            )
+        }
+    }
+
+    function RepoList (props) {
+        return (
+            <div>
+                <h2>{props.langua ge}</h2>
+                <ul style={{display: 'flex', flexWrap: 'wrap'}}>
+                    {props.repos.map(({id, name, url, stargazers_count, owner}) => (
+                        <li key={id} style={{margin: 30}}>
+                            <ul>
+                                <li>
+                                    <span>@{owner.login}</span>
+                                </li>
+                                <li>
+                                    <a href={url}>{name}</a>
+                                </li>
+                                <li>
+                                    <span>{stargazers_count + " stars"}</span>
+                                </li>
+                            </ul>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        )
+    }
+
+    class App extends React.Component {
+        constructor(props) {
+            super(props)
+
+            this.state = {
+                loading: true,
+                repos: [],
+                languages: ['javascript', 'python', 'java', 'all'],
+                currentLanguage: 'all',
+            }
+
+            this.handleSelectLanguage = this.handleSelectLanguage.bind(this)
+            this.fetchRepos = this.fetchRepos.bind(this)         
+        }
+
+        componentDidMount() {
+            this.fetchRepos(this.state.currentLanguage)
+        }
+
+        componentDidUpdate (prevProps, prevState) {
+            if (prevState.currentLanguage !== this.state.currentLanguage) {
+                this.fetchRepos(this.state.currentLanguage)
+            }
+        }
+
+        fetchRepos(lang) {
+            this.setState({
+            loading: true
+            })
+            window.API.fetchPopularRepos(lang)
+            .then((data) => {
+                this.setState({
+                loading: false,
+                repos: data
+                })
+            })
+        }
+
+        handleSelectLanguage(e) {
+            console.log('clicked')
+            console.log(e.target.innerText)
+            e.preventDefault()
+            this.setState({
+                loading: true,
+                currentLanguage: e.target.innerText
+            })
+        }
+
+        render() {
+
+            return (
+                <div>
+                    <h1>Most Stars Repos on Github</h1>
+                    <table>
+                        <tbody>
+                            {this.state.languages.map((language) => (
+                                <tr key={language} onClick={this.handleSelectLanguage} className="lang-row">
+                                    <td>{language}</td>
+                                </tr>
+                            ))}
+                        </tbody> 
+                    </table>
+                    {this.state.loading
+                        ? <Loading />
+                        :  <RepoList repos={this.state.repos} language={this.state.currentLanguage}/>
+                    }
+                </div>
+            )
+        }
+    }
+
+    ReactDOM.render(
+        <App />,
+        document.getElementById('app')
+    )
+  </script>
+</body>
+</html>
